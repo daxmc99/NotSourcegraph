@@ -1,19 +1,23 @@
 import cv2
 import math
 
+
 def minmax(a, b):
     if a > b:
         return (b, a)
     return (a, b)
 
+
 def circle_intersect(x0, y0, x1, y1, r0, r1):
-    return math.hypot(x0-x1, y0-y1) <= (r0+r1)
+    return math.hypot(x0 - x1, y0 - y1) <= (r0 + r1)
+
 
 def contour_info(c):
     ((x, y), radius) = cv2.minEnclosingCircle(c)
     M = cv2.moments(c)
     center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
     return x, y, radius, center
+
 
 def check_contours_intersect(contours, test_contour):
     tx, ty, trad, rcenter = contour_info(test_contour)
@@ -24,12 +28,14 @@ def check_contours_intersect(contours, test_contour):
 
             # Get the percent different in contour area.
             a0, a1 = minmax(cv2.contourArea(c), cv2.contourArea(test_contour))
-            area_diff = ((a1-a0)/a1)*100
+            area_diff = ((a1 - a0) / a1) * 100
 
-            if area_diff >= cv2.getTrackbarPos("c_area_min", "Not Sourcegraph") and area_diff <= cv2.getTrackbarPos("c_area_max", "Not Sourcegraph"):
+            if cv2.getTrackbarPos("c_area_min", "Not Sourcegraph") <= area_diff <= cv2.getTrackbarPos(
+                    "c_area_max", "Not Sourcegraph"):
                 return True
 
     return False
+
 
 def main():
     cam = cv2.VideoCapture(0)
@@ -64,15 +70,16 @@ def main():
         purple_mask = cv2.inRange(image_hsv, (114, 65, 67), (164, 157, 255))
 
         # Blur to remove noise.
-        gaussian_blur_blue = cv2.GaussianBlur(blue_mask, (0,0), 2)
-        gaussian_blur_orange = cv2.GaussianBlur(orange_mask, (0,0), 2)
-        gaussian_blur_purple = cv2.GaussianBlur(purple_mask, (0,0), 2)
-    
+        gaussian_blur_blue = cv2.GaussianBlur(blue_mask, (0, 0), 2)
+        gaussian_blur_orange = cv2.GaussianBlur(orange_mask, (0, 0), 2)
+        gaussian_blur_purple = cv2.GaussianBlur(purple_mask, (0, 0), 2)
+
         # Find the contours.
         blue_contours, blue_hierarchy = cv2.findContours(gaussian_blur_blue, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        orange_contours, orange_hierarchy = cv2.findContours(gaussian_blur_orange, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        purple_contours, purple_hierarchy = cv2.findContours(gaussian_blur_purple, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        
+        orange_contours, orange_hierarchy = cv2.findContours(gaussian_blur_orange, cv2.RETR_TREE,
+                                                             cv2.CHAIN_APPROX_SIMPLE)
+        purple_contours, purple_hierarchy = cv2.findContours(gaussian_blur_purple, cv2.RETR_TREE,
+                                                             cv2.CHAIN_APPROX_SIMPLE)
 
         # Draw the contours on the images.
         cv2.drawContours(blue_contour_image, blue_contours, -1, (0, 255, 0), 3)
@@ -92,7 +99,6 @@ def main():
             x, y, radius, center = contour_info(c)
             cv2.circle(purple_contour_image, (int(x), int(y)), int(radius), (0, 0, 255), 1)
 
-
         # Find the sourcegraph logo by searching for grouped contours of blue,
         # then checking if contours of orange and purple intersecting it,
         # limited by the contour area difference between the blue and (orange, purple) areas.
@@ -107,7 +113,6 @@ def main():
                 is_sg = True
                 cv2.circle(out_image, (int(bx), int(by)), int(bradius), (0, 255, 255), 2)
 
-
         # Add the overlay.
         # (Overlay code c+p'ed from https://www.learnopencv.com/alpha-blending-using-opencv-cpp-python/)
         if is_sg:
@@ -119,19 +124,17 @@ def main():
         alpha = sg_alpha_img
         foreground = foreground.astype(float)
         background = background.astype(float)
-        alpha = alpha.astype(float)/255
+        alpha = alpha.astype(float) / 255
         foreground = cv2.multiply(alpha, foreground)
         background = cv2.multiply(1.0 - alpha, background)
         outImage = cv2.add(foreground, background)
-        out_image = outImage/255
-
+        out_image = outImage / 255
 
         # Show the images.
         cv2.imshow("blue_contour_image", blue_contour_image)
         cv2.imshow("orange_contour_image", orange_contour_image)
         cv2.imshow("purple_contour_image", purple_contour_image)
         cv2.imshow("Not Sourcegraph", out_image)
-
 
         if cv2.waitKey(1) & 0xFF is ord('q'):
             break
